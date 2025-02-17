@@ -47,7 +47,7 @@ pip install -r requirements.txt
 #### 3️⃣ Set up Google API Key
 Ensure your `GOOGLE_API_KEY` is set as an environment variable.
 ```sh
-export GOOGLE_API_KEY='your-api-key'
+GOOGLE_API_KEY='your-api-key'
 ```
 
 #### 4️⃣ Run the Application
