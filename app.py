@@ -1,34 +1,60 @@
 import streamlit as st
 import os
+from dotenv import load_dotenv
 from langchain.prompts import PromptTemplate
 from langchain_google_genai import GoogleGenerativeAI
 from langchain_core.runnables import RunnableLambda
 import langchain.globals as lcg
 
+# Load environment variables
+load_dotenv()
+api_key = os.getenv('GOOGLE_API_KEY')
+
+if not api_key:
+    st.error("API Key is missing. Please check your .env file.")
+
+# Set verbosity for debugging
 lcg.set_verbose(True)
 
-os.getenv('GOOGLE_API_KEY')
-generation_config = {"temperature": 0.6, "top_p": 1, "top_k": 1, "max_output_tokens": 2048}
+# Model configuration
+generation_config = {
+    "temperature": 0.6,
+    "top_p": 1,
+    "top_k": 1,
+    "max_output_tokens": 2048
+}
 model = GoogleGenerativeAI(model="gemini-pro", generation_config=generation_config)
 
+# Define prompt template
 prompt_template_resto = PromptTemplate(
     input_variables=['name', 'age', 'gender', 'weight', 'height', 'veg_or_nonveg', 'disease', 'region', 'state', 'allergics', 'foodtype'],
-    template="Think you are a chef and fitness coach, given a person's age, height, weight,gender,veg or non veg,state, region, food type, and food allergy, provide the following information : GREETING *(Name's HEALTH METRICS)* (/n) BMI  /n, healthy weight for the height /n, BMI Prime /n, Ponderal Index /n, fat percentage /n, obese level /n(all this in headline font AND OUTPUT IN TABLE) and recommend THE HEALTHY diet plan with calories count, MACROS,grams for each meal(INSIDE A LARGE TABLE), GIVE THE DEATAIED MENU (WITH QUANTITY AND CALORIES) in a large table form(U CAN ALSO GIVE ALTERNATE MEAL OPTIONS 4-5 IN IT ), and then COOKING PROCEDURE OF all meal(breakfast,lunch,dinner,snacks) in FIRST OPTION(STEP BY STEP)also give the DETAILED PROPER workout recommendation for that person(IN A DETAILED TABLE IN EXPLAINED WAY IN TABLES OF WORKOUT), please provide absolute results without mentioning the method(mention the heading in BOLD)"
-             "Person name: {name}\n"
-             "Person age: {age}\n"
-             "Person gender: {gender}\n"
-             "Person weight: {weight}\n"
-             "Person height: {height}\n"
-             "Person veg_or_nonveg: {veg_or_nonveg}\n"
-             "Person generic disease: {disease}\n"
-             "Person region: {region}\n"
-             "Person state: {state}\n"
-             "Person allergics: {allergics}\n"
-             "Person foodtype: {foodtype}."
+    template=(
+        "**GREETING** *(Name's HEALTH METRICS)*\n\n"
+        "**BMI:** \n**Healthy Weight for Height:** \n**BMI Prime:** \n"
+        "**Ponderal Index:** \n**Fat Percentage:** \n**Obese Level:** \n\n"
+        "**HEALTHY DIET PLAN:** (Calories & Macros in a Table)\n\n"
+        "**MEAL MENU:** (With Quantity & Calories in a Table)\n\n"
+        "**COOKING PROCEDURE:** (Step-by-Step for Each Meal)\n\n"
+        "**WORKOUT RECOMMENDATION:** (Detailed Workout Plan in a Table)\n\n"
+        "### Person Details\n"
+        "**Name:** {name}\n"
+        "**Age:** {age}\n"
+        "**Gender:** {gender}\n"
+        "**Weight:** {weight} kg\n"
+        "**Height:** {height} cm\n"
+        "**Diet Preference:** {veg_or_nonveg}\n"
+        "**Disease:** {disease}\n"
+        "**Region:** {region}\n"
+        "**State:** {state}\n"
+        "**Allergies:** {allergics}\n"
+        "**Food Type Preference:** {foodtype}"
+    )
 )
 
-chain_resto = RunnableLambda(lambda inputs: prompt_template_resto.format(**inputs)) | model
+# Ensure the model receives the formatted prompt
+chain_resto = RunnableLambda(lambda inputs: model.invoke(prompt_template_resto.format(**inputs)))
 
+# Streamlit UI
 st.markdown(
     f"""
     <style>
@@ -84,6 +110,7 @@ st.markdown(
 st.markdown('<div class="title">FITNEZZ-FIZZ</div>', unsafe_allow_html=True)
 st.markdown('<div class="subtitle">COOK your Personal DIET with AI</div>', unsafe_allow_html=True)
 
+# Input Form
 with st.form(key='user_input_form', clear_on_submit=True):
     st.markdown('<div class="form-label">Name:</div>', unsafe_allow_html=True)
     name = st.text_input('Name', key='name', placeholder='Enter your name', label_visibility='hidden')
@@ -92,7 +119,7 @@ with st.form(key='user_input_form', clear_on_submit=True):
     age = st.text_input('Age', key='age', placeholder='Enter your age', label_visibility='hidden')
 
     st.markdown('<div class="form-label">Gender:</div>', unsafe_allow_html=True)
-    gender = st.selectbox('Gender', ['Gender','Male', 'Female'], key='gender', label_visibility='hidden')
+    gender = st.selectbox('Gender', ['Select Gender', 'Male', 'Female'], key='gender', label_visibility='hidden')
 
     st.markdown('<div class="form-label">Weight (kg):</div>', unsafe_allow_html=True)
     weight = st.text_input('Weight (kg)', key='weight', placeholder='Enter your weight in kg', label_visibility='hidden')
@@ -101,7 +128,7 @@ with st.form(key='user_input_form', clear_on_submit=True):
     height = st.text_input('Height (cm)', key='height', placeholder='Enter your height in cm', label_visibility='hidden')
 
     st.markdown('<div class="form-label">Veg or Non-Veg:</div>', unsafe_allow_html=True)
-    veg_or_nonveg = st.selectbox('Veg or Non-Veg', ['Veg', 'Non-Veg'], key='veg_or_nonveg', label_visibility='hidden')
+    veg_or_nonveg = st.selectbox('Diet Preference', ['Select', 'Veg', 'Non-Veg'], key='veg_or_nonveg', label_visibility='hidden')
 
     st.markdown('<div class="form-label">Disease:</div>', unsafe_allow_html=True)
     disease = st.text_input('Disease', key='disease', placeholder='Enter any generic disease', label_visibility='hidden')
@@ -119,10 +146,9 @@ with st.form(key='user_input_form', clear_on_submit=True):
     foodtype = st.text_input('Food Type', key='foodtype', placeholder='Enter your preferred food type', label_visibility='hidden')
 
     submit_button = st.form_submit_button(label='Get Recommendations')
-    st.markdown('</div>', unsafe_allow_html=True)
 
 if submit_button:
-    if all([name, age, gender, weight, height, veg_or_nonveg, disease, region, state, allergics, foodtype]):
+    if all([name, age, gender != 'Select Gender', weight, height, veg_or_nonveg != 'Select', disease, region, state, allergics, foodtype]):
         input_data = {
             'name': name,
             'age': age,
@@ -141,7 +167,7 @@ if submit_button:
 
         st.markdown('<div class="subtitle">Recommendations:</div>', unsafe_allow_html=True)
         st.markdown('<div class="recommendations">', unsafe_allow_html=True)
-        st.markdown(recommendations, unsafe_allow_html=True)
+        st.write(recommendations)
         st.markdown('</div>', unsafe_allow_html=True)
 
     else:
